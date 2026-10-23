@@ -44,15 +44,16 @@
   --f-body: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-mono: "Martian Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
+/* Dark is the default. Light applies when chosen, or in System mode on a light device. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root[data-mode="system"]:not([data-theme="light"]) {
     --canvas: #0E1014; --dot: #343A46; --frame: #16191F; --soft: #1C2027; --ink: #ECEEF2; --muted: #98A0AE; --line: #2A2F38;
     --acc-l: 64%; --acc-hover-l: 71%; --acc-active-l: 78%;
     --term-bg: #0B0C0F; --term-line: #23262D; --term-log: #070809;
     color-scheme: dark;
   }
 }
-:root[data-theme="dark"] {
+:root:not([data-theme="light"]):not([data-mode="system"]) {
   --canvas: #0E1014; --dot: #343A46; --frame: #16191F; --soft: #1C2027; --ink: #ECEEF2; --muted: #98A0AE; --line: #2A2F38;
   --acc-l: 64%; --acc-hover-l: 71%; --acc-active-l: 78%;
   --term-bg: #0B0C0F; --term-line: #23262D; --term-log: #070809;
@@ -468,6 +469,18 @@ a.logo:hover { transform: rotate(-4deg) scale(1.05); border-color: var(--accent)
 </style>
 </head>
 <body>
+<script>
+/* Pick the accent before first paint: the visitor's saved hue, or a random preset */
+(() => {
+  let h;
+  try { h = parseInt(localStorage.getItem('am-hue'), 10); } catch (e) {}
+  if (!(h >= 0 && h <= 360)) {
+    const presets = [340, 14, 42, 158, 204, 250];
+    h = presets[Math.floor(Math.random() * presets.length)];
+  }
+  document.documentElement.style.setProperty('--h', h);
+})();
+</script>
 
 <canvas id="dots" aria-hidden="true"></canvas>
 <header class="topbar">
@@ -547,9 +560,9 @@ a.logo:hover { transform: rotate(-4deg) scale(1.05); border-color: var(--accent)
       <div class="ins-sec">
         <p class="ins-label">Appearance</p>
         <div class="seg" role="group" aria-label="Light or dark">
-          <button type="button" data-mode="system">System</button>
-          <button type="button" data-mode="light">Light</button>
           <button type="button" data-mode="dark">Dark</button>
+          <button type="button" data-mode="light">Light</button>
+          <button type="button" data-mode="system">System</button>
         </div>
         <div class="ins-foot">
           <span class="sec-note">Saved in this browser</span>
@@ -914,7 +927,8 @@ a.logo:hover { transform: rotate(-4deg) scale(1.05); border-color: var(--accent)
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+    del(k) { try { localStorage.removeItem(k); } catch (e) {} }
   };
 
   /* Split the name into letters for the stretch animation */
@@ -951,7 +965,11 @@ a.logo:hover { transform: rotate(-4deg) scale(1.05); border-color: var(--accent)
   const fontBtns = [...document.querySelectorAll('[data-font-opt]')];
   const modeBtns = [...document.querySelectorAll('[data-mode]')];
   const swatches = [...document.querySelectorAll('.swatch')];
-  const DEFAULT_HUE = 340;
+  const PRESET_HUES = presets.map(p => +p.dataset.hue);
+  const randomHue = (not) => {
+    const pool = PRESET_HUES.filter(h => h !== not);
+    return pool[Math.floor(Math.random() * pool.length)];
+  };
   let dotsRecolor = () => {};
 
   const channels = rgb => (rgb.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
@@ -985,30 +1003,32 @@ a.logo:hover { transform: rotate(-4deg) scale(1.05); border-color: var(--accent)
     if (save) store.set('am-font', f);
   }
   function setMode(m, save) {
-    if (m === 'system') root.removeAttribute('data-theme');
-    else root.dataset.theme = m;
+    if (m === 'system') { root.removeAttribute('data-theme'); root.dataset.mode = 'system'; }
+    else { root.removeAttribute('data-mode'); root.dataset.theme = m; }
     modeBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
     refresh();
     if (save) store.set('am-mode', m);
   }
 
-  const savedHue = parseInt(store.get('am-hue'), 10);
   const savedFont = store.get('am-font');
   const savedMode = store.get('am-mode');
-  setHue(savedHue >= 0 && savedHue <= 360 ? savedHue : DEFAULT_HUE);
+  /* The head script already chose the hue (saved or random preset); sync the panel to it */
+  const startHue = parseInt(root.style.getPropertyValue('--h'), 10);
+  setHue(startHue >= 0 && startHue <= 360 ? startHue : randomHue());
   setFont(['anybody', 'serif', 'bagel'].includes(savedFont) ? savedFont : 'serif');
-  if (savedMode === 'light' || savedMode === 'dark') setMode(savedMode);
-  else modeBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === 'system')));
+  if (['system', 'light', 'dark'].includes(savedMode)) setMode(savedMode);
+  else modeBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === 'dark')));
 
   hue.addEventListener('input', () => setHue(+hue.value, true));
   presets.forEach(p => p.addEventListener('click', () => setHue(+p.dataset.hue, true)));
   fontBtns.forEach(b => b.addEventListener('click', () => setFont(b.dataset.fontOpt, true)));
   modeBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode, true)));
   document.getElementById('reset-theme').addEventListener('click', () => {
-    setHue(DEFAULT_HUE, true); setFont('serif', true); setMode('system', true);
+    store.del('am-hue');
+    setHue(randomHue(+hue.value)); setFont('serif', true); setMode('dark', true);
   });
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', refresh);
-  new MutationObserver(refresh).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+  new MutationObserver(refresh).observe(root, { attributes: true, attributeFilter: ['data-theme', 'data-mode'] });
   if (document.fonts) document.fonts.ready.then(refresh);
 
   /* Living dot grid: a slow breathing ripple, a per-dot twinkle, and an accent glow near the cursor */

@@ -8,7 +8,7 @@ Personal portfolio of Abhishek Mohanty, frontend and full-stack engineer buildin
 
 A single, dependency-free `index.html` (HTML, CSS and vanilla JavaScript) designed like a design-tool canvas:
 
-- **Live theme engine.** Pick an accent hue and the whole site recolors. Hover and active shades are derived automatically through CSS variables, the same approach I built for Scrut's customers. Typeface (Instrument Serif, Anybody, Bagel Fat One) and light/dark mode are switchable too, and choices persist in `localStorage`.
+- **Live theme engine.** Pick an accent hue and the whole site recolors. Hover and active shades are derived automatically through CSS variables, the same approach I built for Scrut's customers. Typeface (Instrument Serif, Anybody, Bagel Fat One) and appearance (dark by default, light, or system) are switchable too, and choices persist in `localStorage`. Each new visit starts with a random preset accent until the visitor picks their own.
 - **Breathing dot grid.** A canvas background that ripples outward from the center, with per-dot twinkle and an accent glow that follows the cursor.
 - **Frame selection.** Each section is a "frame" with Figma-style selection handles and a live size badge on hover.
 - **Streaming demo.** A simulated SSE progress replay of the AI-assisted Trust Vault setup, with three parallel LangGraph-style subtasks.
